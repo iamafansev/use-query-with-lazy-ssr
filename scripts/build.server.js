@@ -37,6 +37,10 @@ webpack(
           use: 'babel-loader',
           exclude: /node_modules/,
         },
+        {
+          resourceQuery: /raw/,
+          type: 'asset/source',
+        },
       ],
     },
   },

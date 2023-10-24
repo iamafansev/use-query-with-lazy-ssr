@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useQuery } from '@apollo/client';
+import { useState, Suspense } from 'react';
+import { useSuspenseQuery } from '@apollo/client';
 import { Link, useParams } from 'react-router-dom';
 import { graphql } from '../gql';
 
@@ -16,16 +16,12 @@ const COUNTRY_QUERY = graphql(/* GraphQL */ `
   }
 `);
 
-const Country = () => {
+const CountryContent = () => {
   const [selectedTab, setSelectedTab] = useState('states');
   const { code } = useParams<'code'>();
-  const { data, loading } = useQuery(COUNTRY_QUERY, {
+  const { data } = useSuspenseQuery(COUNTRY_QUERY, {
     variables: { code: code! },
   });
-
-  if (loading || !data) {
-    return <>Loading...</>;
-  }
 
   const { country } = data;
 
@@ -49,6 +45,14 @@ const Country = () => {
   );
 };
 
+const Country = () => {
+  return (
+    <Suspense fallback={<>...loading</>}>
+      <CountryContent />
+    </Suspense>
+  );
+}
+
 const LANGUAGES_QUERY = graphql(/* GraphQL */ `
   query LanguagesQuery($countryCode: ID!) {
     country(code: $countryCode) {
@@ -65,14 +69,10 @@ interface LanguagesProps {
   countryCode: string;
 }
 
-const Languages = ({ countryCode }: LanguagesProps) => {
-  const { data, loading } = useQuery(LANGUAGES_QUERY, {
+const LanguagesContent = ({ countryCode }: LanguagesProps) => {
+  const { data } = useSuspenseQuery(LANGUAGES_QUERY, {
     variables: { countryCode },
   });
-
-  if (loading) {
-    return <>Loading...</>;
-  }
 
   return (
     <ul>
@@ -82,6 +82,14 @@ const Languages = ({ countryCode }: LanguagesProps) => {
     </ul>
   );
 };
+
+const Languages = (props: LanguagesProps) => {
+  return (
+    <Suspense fallback={<>...loading</>}>
+      <LanguagesContent {...props} />
+    </Suspense>
+  );
+}
 
 const STATES_QUERY = graphql(/* GraphQL */ `
   query StatesQuery($countryCode: ID!) {
@@ -98,14 +106,10 @@ interface StatesProps {
   countryCode: string;
 }
 
-const States = ({ countryCode }: StatesProps) => {
-  const { data, loading } = useQuery(STATES_QUERY, {
+const StatesContent = ({ countryCode }: StatesProps) => {
+  const { data } = useSuspenseQuery(STATES_QUERY, {
     variables: { countryCode },
   });
-
-  if (loading) {
-    return <>Loading...</>;
-  }
 
   const states = data?.country?.states ?? [];
 
@@ -119,5 +123,13 @@ const States = ({ countryCode }: StatesProps) => {
     <>No states</>
   );
 };
+
+const States = (props: StatesProps) => {
+  return (
+    <Suspense fallback={<>...loading</>}>
+      <StatesContent {...props} />
+    </Suspense>
+  );
+}
 
 export default Country;

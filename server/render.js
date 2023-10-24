@@ -1,8 +1,12 @@
-import App from '../src/App';
+import { Writable } from 'node:stream';
 import { ApolloProvider, ApolloClient, createHttpLink } from '@apollo/client';
-import { renderToStringWithData } from '@apollo/client/react/ssr';
+import {renderToPipeableStream} from 'react-dom/server';
 import { StaticRouter } from 'react-router-dom/server';
+import { minify } from 'html-minifier';
+
+import App from '../src/App';
 import cache from '../src/cache';
+import template from './index.html?raw';
 
 // In a real setup, you'd read it from webpack build stats.
 const assets = {
@@ -10,7 +14,15 @@ const assets = {
   'main.css': '/client/main.css',
 };
 
+const SCRIPTS_SEARCH_VALUE = '<!-- SCRIPTS -->';
+const CONTENT_SEARCH_VALUE = '<!-- CONTENT -->';
+
+export const splitTemplate = (template) => template.split(CONTENT_SEARCH_VALUE);
+
 export default function render(url, res) {
+  const minifiedTemplate = minify(template, { collapseWhitespace: true });
+  const [beginTemplate, endTemplate] = splitTemplate(minifiedTemplate);
+
   res.socket.on('error', (error) => {
     console.error('Fatal', error);
   });
@@ -21,42 +33,46 @@ export default function render(url, res) {
     cache,
   });
 
-  renderToStringWithData(
+  let writedBeginHtml = false;
+
+  const stream = new Writable({
+    write(chunk, _encoding, callback) {
+      if (!writedBeginHtml) {
+        res.setHeader('Cache-Control', 'no-cache')
+        const concatedChunks = beginTemplate.concat(chunk.toString());
+        res.write(concatedChunks, callback);
+        writedBeginHtml = true;
+      } else {
+        res.write(chunk, callback);
+      }
+    },
+    final() {
+      console.log('final', client.extract());
+      res.end(endTemplate.replace(SCRIPTS_SEARCH_VALUE, `
+        <script>
+          window.assetManifest = ${JSON.stringify(assets)};
+          window.__APOLLO_STATE__ = ${JSON.stringify(client.extract()).replace(
+            /</g,
+            '\\u003c'
+          )};
+        </script>
+        <script type="text/javascript" src="${assets['main.js']}"></script>
+      `));
+    },
+  });
+
+  const app = (
     <StaticRouter location={url}>
       <ApolloProvider client={client}>
         <App assets={assets} />
       </ApolloProvider>
     </StaticRouter>
-  ).then((content) => {
-    res.status(200);
-    res.setHeader('Content-type', 'text/html');
-    res.send(
-      `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="${assets['main.css']}" >
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro" rel="preconnect">
-    <title>React Apollo SSR</title>
-  </head>
-  <body>
-    <noscript>
-      <b>Enable JavaScript to run this app.</b>
-    </noscript>
-    <div id="root">${content}</div>
-    <script>
-window.assetManifest = ${JSON.stringify(assets)};
-window.__APOLLO_STATE__ = ${JSON.stringify(client.extract()).replace(
-        /</g,
-        '\\u003c'
-      )};
-    </script>
-    <script type="text/javascript" src="${assets['main.js']}"></script>
-  </body>
-</html>
-`
-    );
-    res.end();
+  );
+
+  const {pipe} = renderToPipeableStream(app, {
+    onShellReady() {
+      res.status(200);
+      pipe(stream);
+    },
   });
 }
