@@ -5,13 +5,13 @@
 Clone the repo and install dependencies
 
 ```sh
-npm install
+yarn install
 ```
 
 Once installed, you can run the app using:
 
 ```sh
-npm start
+yarn start
 ```
 
 Visit http://localhost:4000/ to see the running app
