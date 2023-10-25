@@ -1,5 +1,5 @@
 import {Suspense} from 'react';
-import { useSuspenseQuery } from '@apollo/client';
+import { useQuery } from '@apollo/client';
 import { graphql } from '../gql';
 
 const LANGUAGES_QUERY = graphql(/* GraphQL */ `
@@ -15,10 +15,12 @@ const LANGUAGES_QUERY = graphql(/* GraphQL */ `
 `);
 
 const IndexContent = () => {
-  const { data: langData } = useSuspenseQuery(LANGUAGES_QUERY, {
+  const { data: langData, loading } = useQuery(LANGUAGES_QUERY, {
     variables: { countryCode: 'RU' },
     fetchPolicy: 'cache-and-network'
   });
+
+  if (loading) return <>...loading</>;
 
   return (
     <ul className="list-style-none">

@@ -1,4 +1,5 @@
 import { ApolloProvider, ApolloClient, createHttpLink } from '@apollo/client';
+import { getDataFromTree } from '@apollo/client/react/ssr';
 import {renderToPipeableStream} from 'react-dom/server';
 import { StaticRouter } from 'react-router-dom/server';
 import { minify } from 'html-minifier';
@@ -39,6 +40,8 @@ const render = async (url, res) => {
       </ApolloProvider>
     </StaticRouter>
   );
+
+  await getDataFromTree(app);
 
   const {pipe} = renderToPipeableStream(app, {
     onAllReady() {

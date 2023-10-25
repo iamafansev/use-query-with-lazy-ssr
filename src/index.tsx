@@ -10,6 +10,7 @@ const client = new ApolloClient({
   connectToDevTools: true,
   link: createHttpLink({ uri: 'https://countries.trevorblades.com' }),
   cache: cache.restore((window as any).__APOLLO_STATE__),
+  ssrForceFetchDelay: 100,
 });
 
 hydrateRoot(
