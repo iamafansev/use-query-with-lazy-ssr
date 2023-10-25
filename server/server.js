@@ -14,7 +14,7 @@ app.get(
   '*',
   handleErrors(async function (req, res) {
     await waitForWebpack();
-    render(req.url, res);
+    await render(req.url, res);
   })
 );
 
